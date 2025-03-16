@@ -1,19 +1,20 @@
+
 from datetime import datetime
+from plistlib import dumps
+
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import websocket
 import json
+from kafka import KafkaProducer
 import uuid
 
-default_args = {
-    'owner': 'Warsame',
-    'start_date': datetime(2025, 3, 14, 23,00)
-}
-
+from kafka import KafkaProducer
+producer = KafkaProducer(bootstrap_servers=['localhost:9092'], max_block_ms=5000)
 
 def format_data(res):
     data = {}
-    data['id'] = uuid.uuid4()
+    data['id'] = str(uuid.uuid4())
     data['symbol'] = res.get('s', 'Unknown')
     data['price'] = res.get('p', 'Unknown')
     data['timestamp'] = res.get('t', 'Unknown')
@@ -21,17 +22,19 @@ def format_data(res):
     return data
 
 
-def get_data():
-    data_received = []
 
+# Fonction WebSocket : Connexion et gestion des messages reçus
+def get_data():
     def on_message(ws, message):
         try:
             message = json.loads(message)
             if "data" in message:
                 for res in message["data"]:
-                    #formatted_data = format_data(res)
-                    #data_received.append(formatted_data)
-                    print(json.dumps(res, indent=3))  # Affiche chaque donnée reçue en temps réel
+                    formatted_data = format_data(res)
+                    print(f"Message reçu : {formatted_data}")  # Affiche chaque donnée reçue en temps réel
+                    producer.send('new_price', value=json.dumps(formatted_data).encode('utf-8'))
+                    producer.flush()
+                    print(f"Message envoyé au topic")
         except json.JSONDecodeError:
             print("Erreur lors du décodage du message.")
 
@@ -56,7 +59,6 @@ def get_data():
     ws.on_open = on_open
     ws.run_forever()  # Ceci est bloquant, donc rien après cette ligne ne s'exécutera.
 
-    # Pas de "return" ici, car ça arrêterait immédiatement l'écoute
 
 
 
@@ -65,8 +67,8 @@ def stream_data():
     import json
     import requests
     res = get_data()
-    res = format_data(res)
-    print(json.dumps(res, indent=3))
+
+
 
 stream_data()
 
