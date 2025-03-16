@@ -11,8 +11,10 @@ import uuid
 import threading
 
 from kafka import KafkaProducer
-producer = KafkaProducer(bootstrap_servers=['localhost:9092'], max_block_ms=5000)
+from queue import Queue
 
+producer = KafkaProducer(bootstrap_servers=['localhost:9092'], max_block_ms=5000)
+message_queue = Queue()
 def format_data(res):
     data = {}
     data['id'] = str(uuid.uuid4())
@@ -23,9 +25,14 @@ def format_data(res):
     return data
 
 
-def send_to_kafka(formatted_data):
-    producer.send('new_price2', value=json.dumps(formatted_data).encode('utf-8'))
-    print(f"Message envoyé au topic")
+def send_to_kafka(queue_name):
+    while True:
+        message = queue_name.get()
+        if message is None:
+            break
+        producer.send('new_price4', value=json.dumps(message).encode('utf-8'))
+        producer.flush()
+        print(f"Message envoyé au topic")
 
 # Fonction WebSocket : Connexion et gestion des messages reçus
 def get_data():
@@ -36,7 +43,7 @@ def get_data():
                 for res in message["data"]:
                     formatted_data = format_data(res)
                     print(f"Message reçu : {formatted_data}")  # Affiche chaque donnée reçue en temps réel
-                    threading.Thread(target=send_to_kafka, args=(formatted_data,)).start()
+                    message_queue.put(formatted_data)
         except json.JSONDecodeError:
             print("Erreur lors du décodage du message.")
 
@@ -59,7 +66,8 @@ def get_data():
         on_close=on_close
     )
     ws.on_open = on_open
-    ws.run_forever()  # Ceci est bloquant, donc rien après cette ligne ne s'exécutera.
+    return ws
+
 
 
 
@@ -68,8 +76,15 @@ def get_data():
 def stream_data():
     import json
     import requests
-    res = get_data()
 
+    kafka_thread = threading.Thread(target=send_to_kafka, args=(message_queue,))
+    kafka_thread.start()
+
+
+    connexion = get_data()
+    connexion.run_forever()
+    message_queue.put(None)
+    kafka_thread.join()
 
 
 stream_data()
