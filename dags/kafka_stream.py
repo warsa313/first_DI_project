@@ -8,6 +8,7 @@ import websocket
 import json
 from kafka import KafkaProducer
 import uuid
+import threading
 
 from kafka import KafkaProducer
 producer = KafkaProducer(bootstrap_servers=['localhost:9092'], max_block_ms=5000)
@@ -22,6 +23,9 @@ def format_data(res):
     return data
 
 
+def send_to_kafka(formatted_data):
+    producer.send('new_price2', value=json.dumps(formatted_data).encode('utf-8'))
+    print(f"Message envoyé au topic")
 
 # Fonction WebSocket : Connexion et gestion des messages reçus
 def get_data():
@@ -32,9 +36,7 @@ def get_data():
                 for res in message["data"]:
                     formatted_data = format_data(res)
                     print(f"Message reçu : {formatted_data}")  # Affiche chaque donnée reçue en temps réel
-                    producer.send('new_price', value=json.dumps(formatted_data).encode('utf-8'))
-                    producer.flush()
-                    print(f"Message envoyé au topic")
+                    threading.Thread(target=send_to_kafka, args=(formatted_data,)).start()
         except json.JSONDecodeError:
             print("Erreur lors du décodage du message.")
 

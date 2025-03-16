@@ -5,7 +5,6 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="170bcbfc-8b79-4692-ba55-0b998c6eb72d" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/dags/kafka_stream.py" beforeDir="false" afterPath="$PROJECT_DIR$/dags/kafka_stream.py" afterDir="false" />
     </list>
