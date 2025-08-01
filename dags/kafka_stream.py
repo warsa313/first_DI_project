@@ -25,6 +25,43 @@ def format_data(res):
     return data
 
 
+
+
+# Fonction WebSocket : Connexion et gestion des messages reçus
+
+def on_message(ws, message):
+    try:
+        message = json.loads(message)
+        if "data" in message:
+            for res in message["data"]:
+                formatted_data = format_data(res)
+                print(f"Message reçu : {formatted_data}")  # Affiche chaque donnée reçue en temps réel
+                message_queue.put(formatted_data)
+    except json.JSONDecodeError:
+        print("Erreur lors du décodage du message.")
+
+def on_error(ws, error):
+    print("Erreur : ", error)
+
+def on_close(ws, close_status_code, close_msg):
+    print(f"### Connexion fermée ###\nCode : {close_status_code}, Message : {close_msg}")
+
+def on_open(ws):
+    ws.send('{"type":"subscribe","symbol":"AAPL"}')
+    ws.send('{"type":"subscribe","symbol":"AMZN"}')
+    ws.send('{"type":"subscribe","symbol":"BINANCE:BTCUSDT"}')
+    ws.send('{"type":"subscribe","symbol":"IC MARKETS:1"}')
+
+def connect_to_websocket():
+    ws = websocket.WebSocketApp(
+    "wss://ws.finnhub.io?token=cv7rk19r01qpecih8e40cv7rk19r01qpecih8e4g",
+    on_message=on_message,
+    on_error=on_error,
+    on_close=on_close
+)
+    ws.on_open = on_open
+    return ws
+
 def send_to_kafka(queue_name):
     while True:
         message = queue_name.get()
@@ -34,44 +71,7 @@ def send_to_kafka(queue_name):
         producer.flush()
         print(f"Message envoyé au topic")
 
-# Fonction WebSocket : Connexion et gestion des messages reçus
-def get_data():
-    def on_message(ws, message):
-        try:
-            message = json.loads(message)
-            if "data" in message:
-                for res in message["data"]:
-                    formatted_data = format_data(res)
-                    print(f"Message reçu : {formatted_data}")  # Affiche chaque donnée reçue en temps réel
-                    message_queue.put(formatted_data)
-        except json.JSONDecodeError:
-            print("Erreur lors du décodage du message.")
-
-    def on_error(ws, error):
-        print("Erreur : ", error)
-
-    def on_close(ws, close_status_code, close_msg):
-        print(f"### Connexion fermée ###\nCode : {close_status_code}, Message : {close_msg}")
-
-    def on_open(ws):
-        ws.send('{"type":"subscribe","symbol":"AAPL"}')
-        ws.send('{"type":"subscribe","symbol":"AMZN"}')
-        ws.send('{"type":"subscribe","symbol":"BINANCE:BTCUSDT"}')
-        ws.send('{"type":"subscribe","symbol":"IC MARKETS:1"}')
-
-    ws = websocket.WebSocketApp(
-        "wss://ws.finnhub.io?token=cv7rk19r01qpecih8e40cv7rk19r01qpecih8e4g",
-        on_message=on_message,
-        on_error=on_error,
-        on_close=on_close
-    )
-    ws.on_open = on_open
-    return ws
-
-
-
-
-
+ls
 
 def stream_data():
     import json
@@ -81,7 +81,7 @@ def stream_data():
     kafka_thread.start()
 
 
-    connexion = get_data()
+    connexion = connect_to_websocket()
     connexion.run_forever()
     message_queue.put(None)
     kafka_thread.join()
